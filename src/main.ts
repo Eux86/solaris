@@ -1,20 +1,19 @@
 import * as THREE from 'three';
-import { celestialBodies, CelestialBody } from "./solar-system";
-import { cameraMouseControl } from "./camera-mouse-control";
-import { Vector3 } from "three";
+import { celestialBodies, CelestialBody } from "./solar-system-data";
+import { cameraControl } from "./camera-control";
+import { setupLightingAndBackground } from "./lighting-and-background";
+import { createSolarSystem } from "./create-solar-system";
+import { solarSystemMenu } from "./planet-selection-menu";
+import { CurrentTime } from "./current-time";
+import TWEEN from "@tweenjs/tween.js";
+import { Logger } from "./logger";
 
 const scene = new THREE.Scene();
-const gridMaterial = new THREE.LineBasicMaterial({ color: 0x808080 });
 const gridSize = 500;
 const gridSpacing = 1;
+let selectedCelestialBody: CelestialBody = celestialBodies[2];
 
-enum Color {
-    LightGray = '0xdcdcdc'
-}
-
-function horizontalPlane() {
-    const y = -5;
-
+function horizontalPlane(heigth: number = -5) {
     function createHorizontalGrid(y: number) {
         const verticalPosition = y;
         const maxOpacityDistance = gridSize * 0.05; // Adjust this value to control the distance where lines start fading
@@ -58,98 +57,29 @@ function horizontalPlane() {
         scene.add(square);
     }
 
-    createHorizontalGrid(y);
-    createSquare(y)
-}
-
-
-function addShadowCastingLight() {
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(10, 20, 5);
-    directionalLight.castShadow = true;
-
-    directionalLight.shadow.mapSize.width = 1024;
-    directionalLight.shadow.mapSize.height = 1024;
-    directionalLight.shadow.camera.top = gridSize;
-    directionalLight.shadow.camera.bottom = -gridSize;
-    directionalLight.shadow.camera.left = -gridSize;
-    directionalLight.shadow.camera.right = gridSize;
-    directionalLight.shadow.camera.near = 0.1;
-    directionalLight.shadow.camera.far = gridSize;
-
-    scene.add(directionalLight);
-}
-
-function createSky() {
-    const skyGeometry = new THREE.SphereGeometry(300, 32, 32); // Large sphere geometry
-    const skyMaterial = new THREE.MeshBasicMaterial({
-        color: 0x222222,
-        side: THREE.BackSide, // Render the material on the back side of the geometry
-    });
-
-    const sky = new THREE.Mesh(skyGeometry, skyMaterial);
-    scene.add(sky);
+    createHorizontalGrid(heigth);
+    createSquare(heigth)
 }
 
 
 
-function createSolarSystem(bodies: CelestialBody[]) {
-    function placeCelestialBodies() {
-        bodies.forEach(body => {
-            if (body.orbitRadius && body.centerBody) {
-                const orbit = createOrbit(body.orbitRadius);
-                const planet = createPlanet(body.size, body.color);
-
-                body.mesh = orbit;
-                body.centerBody.mesh?.add(orbit);
-
-                const angle = Math.random() * Math.PI * 2; // Randomize initial position for variety
-                const x = Math.cos(angle) * body.orbitRadius;
-                const z = Math.sin(angle) * body.orbitRadius;
-
-                planet.position.set(x, 0, z); // Set the planet's position along the orbit
-                orbit.add(planet);
-                body.mesh = planet;
-            } else {
-                const planet = createPlanet(body.size, body.color, body.emitsLight);
-                body.mesh = planet;
-                scene.add(planet);
-            }
-        });
-    }
-    function createPlanet(size: number, color: number, emitsLight = false): THREE.Mesh {
-        const planetGeometry = new THREE.SphereGeometry(size, 32, 32);
-        const planetMaterial = new THREE.MeshStandardMaterial({ color: color });
-        const planet = new THREE.Mesh(planetGeometry, planetMaterial);
-        planet.castShadow = true;
-        planet.receiveShadow = true;
-        return planet
-    }
-    function createOrbit(radius: number): THREE.Line {
-        const orbitPoints = 128;
-        const orbitGeometry = new THREE.BufferGeometry();
-        const vertices = [];
-
-        for (let i = 0; i < orbitPoints; i++) {
-            const angle = (i / orbitPoints) * Math.PI * 2;
-            vertices.push(radius * Math.cos(angle), 0, radius * Math.sin(angle));
-        }
-
-        orbitGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-        return new THREE.Line(orbitGeometry, orbitMaterial);
-    }
-
-    placeCelestialBodies();
-}
 
 function animate(camera: THREE.PerspectiveCamera, scene: THREE.Scene, renderer:THREE.WebGLRenderer) {
     function loop()
     {
         requestAnimationFrame(loop);
+        TWEEN.update();
+        CurrentTime.getInstance().increment();
+        createSolarSystem(scene, celestialBodies);
+        cameraControl(camera, selectedCelestialBody);
         renderer.render(scene, camera);
     }
     loop()
+}
+
+function onSelectPlanet(celestialBody: CelestialBody) {
+    selectedCelestialBody = celestialBody;
+    Logger.log(`Selected planet: ${selectedCelestialBody.name}`)
 }
 
 function buildScene() {
@@ -162,14 +92,9 @@ function buildScene() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Set shadow map type
     document.body.appendChild(renderer.domElement);
 
-    addShadowCastingLight(); // Add the shadow-casting light
+    setupLightingAndBackground(scene, gridSize);
     horizontalPlane()
-    createSky();
-    // Call the function to create the solar system
-    createSolarSystem(celestialBodies);
-    // rotateCamera(camera, renderer, 30);
-    cameraMouseControl(camera, new Vector3(0,0,0));
-
+    solarSystemMenu(scene, celestialBodies, onSelectPlanet);
     animate(camera, scene, renderer);
 }
 

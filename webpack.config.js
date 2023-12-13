@@ -14,6 +14,18 @@ module.exports = {
     module: {
         rules: [
             {
+                test: /\.(png|jpe?g|gif)$/i,
+                use: [
+                    {
+                        loader: 'file-loader',
+                        options: {
+                            name: '[name].[ext]',
+                            outputPath: '', // Output path relative to your build directory
+                        },
+                    },
+                ],
+            },
+            {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
                 exclude: /node_modules/,

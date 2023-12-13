@@ -13,6 +13,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/three": "^0.159.0",
+    "file-loader": "^6.2.0",
     "html-webpack-plugin": "^5.5.4",
     "three": "^0.159.0",
     "ts-loader": "^9.5.1",
@@ -24,6 +25,7 @@
     "webpack-hot-middleware": "^2.25.4"
   },
   "dependencies": {
+    "@tweenjs/tween.js": "^21.0.0",
     "three-orbitcontrols": "^2.110.3"
   }
 }
